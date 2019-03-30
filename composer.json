@@ -1,0 +1,9 @@
+{
+  "autoload": {
+    "psr-4": {
+      "Kinfy\\": "Kinfy/",
+      "App\\": "app/",
+      "Test\\": "test/"
+    }
+  }
+}
