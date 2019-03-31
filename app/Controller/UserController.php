@@ -11,13 +11,28 @@ namespace App\Controller;
 
 class UserController
 {
-    public function index()
+
+    public function index($id, $name = null)
     {
-        echo 'User index';
+        echo $id.$name;
     }
 
-    public function add()
+    public function add($id)
     {
-        echo 'user add';
+        echo 'user add:' . $id;
+    }
+
+    public function del($id = '空空如也')
+    {
+        echo 'user del:' . $id;
+    }
+
+    public function put()
+    {
+        echo 'user put';
+    }
+
+    public function content($id,$content){
+        echo '用户:'.$id.'内容:'.$content;
     }
 }
