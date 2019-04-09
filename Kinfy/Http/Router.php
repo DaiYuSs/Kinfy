@@ -4,8 +4,13 @@ namespace Kinfy\Http;
 
 //REQUEST_METHOD
 //REDIRECT_URL
-use function PHPSTORM_META\type;
 
+/**
+ * Class Router
+ * @package Kinfy\Http
+ * @author Mr.Lin
+ * @version 0.1
+ */
 class Router
 {
     //当路由未匹配的时候执行回调函数，默认为空
@@ -24,37 +29,120 @@ class Router
     private static $parameter_choose = null;
     //路由携带的参数
     private static $parameter_array = [];
+    //存放group方法url前缀池
+    public static $url_pre = [];
     //存放当前注册的所有的路由规则
     public static $routes = [];
+    //存放当前注册的所有正则表达式路由规则
+    public static $re_routes = [];
 
-    //给静态变量赋值
+    /**
+     * Initialize static variables
+     *
+     * @return void
+     */
     public static function MyStaticInit()
     {
         self::$parameter_necessary = self::$parameter_necessary_start . self::$parameter_necessary_end;
         self::$parameter_choose = self::$parameter_necessary_start . '?' . self::$parameter_necessary_end;
     }
 
-    //调用当前类不存在的静态方法时使用此函数(方法名,数组参数)
+    /**
+     * @param string $name
+     * @param array $arguments
+     * @return void
+     */
     public static function __callStatic($name, $arguments)
     {
-        $name = strtoupper($name);
-        if (count($arguments) >= 3 && $name == 'MATCH') {
-            $arguments[1] = self::router_replace($arguments[1]);
-            if (is_array($arguments[0])) {
-                foreach ($arguments[0] as $request_type) {
-                    $request_type = strtoupper($request_type);
-                    self::$routes[$request_type][self::path($arguments[1])] = $arguments[2];
-                }
-            } else {
-                echo '自定义请求应是数组</br>' . '错误请求头:' . $name . '<br>请求内容';
-                print_r($arguments) . '<br>';
-                die();
-            }
-        } elseif (count($arguments) == 2) {
-            $arguments[0] = self::router_replace($arguments[0]);
-            self::$routes[$name][self::path(($arguments[0]))] = $arguments[1];
+        if (count($arguments) >= 2) {
+//            $arguments[0] = self::router_replace($arguments[0]);
+            self::addRoute($name, ...$arguments);
         }
     }
+
+    /**
+     * Add designation route
+     *
+     * @param string $request_type
+     * @param string $pattern
+     * @param callable $callback
+     * @param
+     * @return void
+     */
+    private static function addRoute($request_type, $pattern, $callback, $re_rule = null)
+    {
+        $request_type = strtoupper($request_type);
+        $pattern = self::path(implode('/', self::$url_pre) . self::path($pattern));
+//        self::$routes[strtoupper($request_type)][$pattern] = $callback;
+        //判断是否为带参路由
+        $is_regx = strpos($pattern, '{') !== false;
+        if (!$is_regx) {
+            self::$routes[$request_type][$pattern] = $callback;
+        } else {
+            $route = [
+                'pattern_raw' => $pattern
+            ];
+            //先找出占位符的名称
+            $is_matched = preg_match_all('#{(.*?)}#', $pattern, $pnames);
+//            print_r(self::$routes);
+            if ($is_matched) {
+                //占位符默认替换的规则为全部
+                $rule = '.*?';
+                foreach ($pnames[1] as $p) {
+                    if (isset($re_rule[$p])) {
+                        $rule = $re_rule[$p];
+                    }
+                    $pattern = str_replace(
+                        '{' . $p . '}',
+                        '(' . $rule . ')',
+                        $pattern
+                    );
+                };
+//                $route = [
+//                    'pattern_raw' => $pattern,
+//                    'pattern_re' => $pattern,
+//                    'callback' => $callback
+//                ];
+//                self::$routes[$request_type][$route['pattern_raw']] = $route;
+            }
+        }
+    }
+
+    /**
+     * Route prefix loop nesting
+     *
+     * @param $pre
+     * @param $callback
+     */
+    public static function group($pre, $callback)
+    {
+        array_push(self::$url_pre, $pre);
+        if (is_callable($callback)) {
+            call_user_func($callback);
+        }
+        array_pop(self::$url_pre);
+    }
+
+    /**
+     * Multiple request types are uniformly added to the route
+     *
+     * @param array $request_type_arr
+     * @param string $pattern
+     * @param callable $callback
+     */
+    public static function MATCH($request_type_arr, $pattern, $callback)
+    {
+        if (!is_array($request_type_arr)) {
+            echo 'match request type should be an array' . '<br>Content:';
+            echo '<br>' . $request_type_arr . '<br>' . $pattern . '<br>' . $callback . '<br>';
+            die();
+        }
+//        $pattern = self::router_replace($pattern);
+        foreach ($request_type_arr as $request_type) {
+            self::addRoute($request_type, $pattern, $callback);
+        }
+    }
+
     //把router替换成必填参数和可选参数的样子
     private static function router_replace($router)
     {
@@ -120,7 +208,20 @@ class Router
         return '/' . implode('/', $router);
     }
 
-    //去掉路由尾巴的'/'，增加路由开头的'/'
+    /**
+     * @param $url_pattern
+     * @param $url
+     */
+    public static function getParams($url_pattern, $url)
+    {
+    }
+
+    /**
+     * Remove the extra '/' from the head and tail and add a '/' to the head
+     *
+     * @param string $path
+     * @return string
+     */
     public static function path($path)
     {
         return '/' . trim($path, '/');
@@ -129,31 +230,41 @@ class Router
     //执行$routes数组里的转发规则
     public static function dispatch()
     {
+        //缩短self::$routes;
+        $routes = self::$routes;
+        //缩短self::$re_routes
+        $re_router = self::$re_routes;
+        print_r($routes);
+        print_r($re_router);
+        die();
         //获取请求头
         $request_type = strtoupper($_SERVER['REQUEST_METHOD']);
         //获取请求地址
-        $pattern = isset($_SERVER['REDIRECT_URL']) ? $_SERVER['REDIRECT_URL'] : '/';
+        $url = isset($_SERVER['REDIRECT_URL']) ? $_SERVER['REDIRECT_URL'] : '/';
+        //改变url样子
+        $url = self::router_parameter_list($request_type, $url);
 
-//        $is_matched = false;
-//        if (isset(self::$routes['ANY'][$pattern])) {
-//            $request_type = 'ANY';
-//            $is_matched = true;
-//        } else {
-//            if (isset(self::$routes[$request_type][$pattern])) {
-//                $is_matched = true;
-//            }
-//        }
-        $pattern = self::router_parameter_list($request_type, $pattern);
+        $is_matched = false;
+        if (isset($routes['ANY'][$url])) {
+            $request_type = 'ANY';
+            $is_matched = true;
+        } elseif (isset($routes[$request_type][$url])) {
+            $is_matched = true;
+        } elseif (isset($routes['ANY'])) {
+            foreach ($routes['ANY'] as $pattern => $callback) {
+                $params = self::getParams($pattern, $url);
+            }
+        }
         //检查是否有定义的请求方式下的请求地址
-        if (isset(self::$routes[$request_type][$pattern])) {
-            $callback = self::$routes[$request_type][$pattern];
+        if ($is_matched) {
+            $callback = $routes[$request_type][$url];
             //检查是可执行函数还是控制器
             if (is_callable($callback)) {
-                call_user_func($callback(...self::$parameter_array));
+                call_user_func($callback, ...self::$parameter_array);
             } else {
                 list($class, $method) = explode(self::$delimiter, $callback);
-                $calss = self::$namespace . $class;
-                $obj = new $calss();
+                $class = self::$namespace . $class;
+                $obj = new $class();
                 $obj->{$method}(...self::$parameter_array);
             }
         } else {
