@@ -13,8 +13,6 @@ namespace Kinfy\Http;
  */
 class Router
 {
-    //当路由未匹配的时候执行回调函数，默认为空
-    public static $notFound = null;
     //控制器与方法的分割字符
     public static $delimiter = '@';
     //调用控制器时的命名空间
@@ -37,9 +35,13 @@ class Router
     public static $re_routes = [];
     //存放正则参数全局默认规则
     public static $default_rule = [];
+    //路由匹配中的回调方法，默认为空
+    public static $onMatch = null;
+    //当路由未匹配的时候执行回调函数，默认为空
+    public static $onMissMatch = null;
 
     /**
-     * Initialize static variables
+     * 初始化静态变量
      *
      * @return void
      */
@@ -50,6 +52,8 @@ class Router
     }
 
     /**
+     * 处理未定义的请求方法
+     *
      * @param string $name
      * @param array $arguments
      * @return void
@@ -63,7 +67,7 @@ class Router
     }
 
     /**
-     * Add designation route
+     * 添加指定参数的路由注册
      *
      * @param string $request_type
      * @param string $pattern
@@ -86,7 +90,7 @@ class Router
     }
 
     /**
-     * Route prefix loop nesting
+     * 路由前缀循环嵌套
      *
      * @param $pre
      * @param $callback
@@ -256,7 +260,7 @@ class Router
     }
 
     /**
-     * Remove the extra '/' from the head and tail and add a '/' to the head
+     * 移除头部和尾部额外的'/'并在头部添加'/'
      *
      * @param string $path
      * @return string
@@ -327,19 +331,24 @@ class Router
         }
         //检查是否有定义的请求方式下的请求地址
         if ($is_matched) {
-            //检查是可执行函数还是控制器
-            if (is_callable($callback)) {
-                call_user_func($callback, ...$params);
+            //是否有自定义url匹配正确的回调函数
+            if (is_callable(self::$onMatch)) {
+                call_user_func(self::$onMatch, $callback, $params);
             } else {
-                list($class, $method) = explode(self::$delimiter, $callback);
-                $class = self::$namespace . $class;
-                $obj = new $class();
-                $obj->{$method}(...$params);
+                //检查是可执行函数还是控制器
+                if (is_callable($callback)) {
+                    call_user_func($callback, ...$params);
+                } else {
+                    list($class, $method) = explode(self::$delimiter, $callback);
+                    $class = self::$namespace . $class;
+                    $obj = new $class();
+                    $obj->{$method}(...$params);
+                }
             }
         } else {
             //检查是否有自定义的错误页面,有执行,没有返回假404
-            if (is_callable(self::$notFound)) {
-                call_user_func(self::$notFound);
+            if (is_callable(self::$onMissMatch)) {
+                call_user_func(self::$onMissMatch);
             } else {
                 header('HTTP/1.1 404 Not Found');
                 exit();
