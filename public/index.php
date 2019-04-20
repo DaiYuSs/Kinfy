@@ -2,6 +2,10 @@
 
 require_once __DIR__ . './../vendor/autoload.php';
 require_once __DIR__ . './../app/router/web.php';
+if (file_exists(__DIR__ . './../app/common/common_functions.php')){
+    require_once __DIR__ . './../app/common/common_functions.php';
+}
+require_once __DIR__ . './../Kinfy/common/common_functions.php';
 
 use Kinfy\Http\Router;
 use Kinfy\Http\Controller;

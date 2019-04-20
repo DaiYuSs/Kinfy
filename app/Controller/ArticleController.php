@@ -1,18 +1,19 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: Administrator
- * Date: 2019/3/26
- * Time: 14:20
- */
 
 namespace App\Controller;
 
+use Kinfy\DB\DB;
 
-class ArticleController
+class ArticleController extends BaseController
 {
     public function index()
     {
-        echo 'article index';
+        $db = new DB;
+        $data = $db->table('article')
+//            ->where('cate_id', '=', '10')
+//            ->where('user_id', '=', '6')
+//            ->getAll();
+            ->first();
+        var_dump($data);
     }
 }

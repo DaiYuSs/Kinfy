@@ -40,3 +40,5 @@ Router::MATCH(['get'], 'user/{id?}/name', function () {
 Router::GET('user@{id}@project_list', function () {
     echo '任意分割符路由测试';
 });
+
+Router::GET('article', 'ArticleController@index');
