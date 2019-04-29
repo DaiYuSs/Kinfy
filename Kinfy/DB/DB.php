@@ -309,12 +309,7 @@ class DB
     public function get()
     {
         $this->genSql();
-        $pdosmt = $this->pdo->prepare($this->sql['sql']);
-        $r = $pdosmt->execute($this->sql['value']);
-        if (!$r) {
-            print_r($pdosmt->errorInfo());
-        }
-        $this->clear();
+        $pdosmt = $this->execute();
         return $pdosmt->fetchAll();
     }
 
@@ -329,5 +324,69 @@ class DB
         $this->fields = '*';
         $this->sql = [];
         $this->join = '';
+    }
+
+    /**
+     * 批量执行 insert
+     *
+     * @param array $values
+     * @param bool $force_align 是否为固定列
+     */
+    public function batchInsert($values, $force_align = true)
+    {
+        if ($force_align) {
+            foreach ($values as $val) {
+                ksort($val);
+                foreach ($val as $v) {
+                    $all_vals[] = $v;
+                }
+            }
+            //获取最后一条数据的所有键,并用，分割
+            $field_keys_str = implode(',', array_keys($val));
+            //构造占位符ph === placeholder
+            $ph = [];
+            $ph = array_pad($ph, count($val), '?');
+            $ph = implode(',', $ph);
+            $all_placeholder = '';
+            for ($i = 0; $i < count($values); $i++) {
+                $all_placeholder .= "({$ph}),";
+            }
+            $all_placeholder = rtrim($all_placeholder, ',');
+            $this->sql = [
+                'sql' => "insert into `{$this->table}` ({$field_keys_str}) values {$all_placeholder}",
+                'value' => $all_vals
+            ];
+        } else {
+            $this->sql['sql'] = '';
+            $this->sql['value'] = [];
+            foreach ($values as $val) {
+                //构造占位符ph === placeholder
+                $ph = [];
+                $ph = array_pad($ph, count($val), '?');
+                $ph = implode(',', $ph);
+                $field_keys_str = implode(',', array_keys($val));
+                $this->sql['sql'] .= "insert into `{$this->table}` ({$field_keys_str}) values ({$ph});\n";
+                foreach ($val as $v) {
+                    $this->sql['value'][] = $v;
+                }
+            }
+        }
+        $this->execute();
+    }
+
+    /**
+     * 准备要执行的语句，执行一条预处理语句
+     *
+     * @return bool|\PDOStatement
+     */
+    private function execute()
+    {
+        $pdosmt = $this->pdo->prepare($this->sql['sql']);
+        $r = $pdosmt->execute($this->sql['value']);
+        if (!$r) {
+            print_r($pdosmt->errorInfo());
+        }
+        $this->clear();
+        return $pdosmt;
     }
 }
