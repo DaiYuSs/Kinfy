@@ -9,63 +9,50 @@ class ArticleController extends BaseController
     public function index()
     {
         $db = new DB;
+        //获取一行数据的案例
 //        $data = $db->table('article')
 //            ->select('id', 'title')
-//            ->where('cate_id', '=', '10')
-//            ->where('user_id', '=', '6')
-//            ->get();
-////            ->first();
+//          ->first();
 //        var_dump($data);
 
-//        $db->sql = [
-//            'sql' => 'select * from article where `title` like ?',
-//            'value' => ['文章1%']
-//        ];
-//        $db->sql = [
-//            'sql' => 'select article.id as aid,article.title,users.id as userid,users.username
-//                      from article join users on article.user_id=users.id limit 2 ',
-//            'value' => []
-//        ];
-//        $data = $db->get();
-//        print_r($data);
-//        echo '<br>';
-
-
+        //获取全部的数据按照id降序案例
 //        $data = $db->table('article')
-//            ->select('id', 'title')
-//            ->where('title', 'like', '文章1%')
+//            ->orderBy('id','desc')
 //            ->get();
+//        var_dump($data);
+
+        //表连接查询案例
 //        $data = $db->table('article')
 //            ->join('users', 'article.user_id=users.id')
 //            ->select('article.id as aid', 'article.title', 'users.id as usersid', 'users.username')
-//            ->take(3)
 //            ->get();
 //        print_r($data);
 
-        $values = ['email' => 'john@example.com', 'votes' => 0];
-//        print_r(reset($values));
-//        print_r($values);
-        if (!is_array(reset($values))) {
-            $values = [$values];
-        }
-//        print_r($values);
-        echo '<br><br>';
-        $values = ['email' => ['john@example.com', 'john@example.com'], 'votes' => 0];
-//        print_r(reset($values));
-//        print_r($values);
-        if (!is_array(reset($values))) {
-            $values = [$values];
-        }
-//        print_r($values);
-//        $db->table('article')->batchInsert([
-//            ['title' => '文章11', 'content' => '11'],
-//            ['content' => '22', 'title' => '文章22'],
-//            ['title' => '文章33', 'content' => '33']
-//        ]);
-        $db->table('article')->batchInsert([
-            ['title' => '文章11', 'content' => '11','cate_id' => '5'],
-            ['content' => '22', 'title' => '文章22'],
-            ['title' => '文章33', 'content' => '33', 'user_id' => '1']
-        ],false);
+        //insert插入案例
+        //        $data = $db->table('article')
+//            ->insert(
+//                ['title' => '文章33', 'content' => '插入案例测试', 'user_id' => 1]
+//            );
+//        print_r($data);
+//        $data = $db->table('article')
+//            ->insert([
+//                ['title' => '文章33', 'content' => '插入案例测试', 'user_id' => 1]
+//                ...
+//            ]);
+//        print_r($data);
+
+//        update更新案例
+//        $data = $db->table('article')
+//            ->where('id','=',1)
+//            ->update([
+//                'title' => '更新后的文章1'
+//            ]);
+//        print_r($data);
+
+        //delete删除案例
+//        $data = $db->table('article')
+//            ->where('id', '=', 8)
+//            ->delete();
+//        print_r($data);
     }
 }

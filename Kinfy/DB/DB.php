@@ -13,6 +13,7 @@ class DB
     private $fields = '*';
     public $sql = [];
     public $join = '';
+    public $orderby = [];
 
     /**
      * DB初始化连接数据库和全局属性
@@ -27,7 +28,7 @@ class DB
                 'host' => '127.0.0.1',
                 'name' => 'kinfy',
                 'user' => 'root',
-                'pass' => ''
+                'pass' => 'root'
             ];
         }
         $dsn = "{$conf['dbms']}:host={$conf['host']};dbname={$conf['name']}";
@@ -237,8 +238,18 @@ class DB
         if ($this->limit) {
             $limit = " limit {$this->limit[0]},{$this->limit[1]} ";
         }
+        $JOIN = $this->join;
+        $ORDERBY = $this->orderby ? 'ORDER BY ' : '';
+        foreach ($this->orderby as $ob) {
+            $is_identifier = strpos($ob[0], '.') !== false;
+            if (!$is_identifier) {
+                $ob[0] = "`{$ob[0]}`";
+            }
+            $ORDERBY .= "{$ob[0]} {$ob[1]},";
+        }
+        $ORDERBY = rtrim($ORDERBY, ',');
         //1.准备SQL
-        $this->sql['sql'] = "select {$this->fields} from {$this->table} {$this->join} $WHERE {$limit}";
+        $this->sql['sql'] = "select {$this->fields} from {$this->table} {$JOIN} {$WHERE} {$ORDERBY} {$limit}";
         $this->sql['value'] = $VAL;
         return $this->sql;
     }
@@ -309,7 +320,7 @@ class DB
     public function get()
     {
         $this->genSql();
-        $pdosmt = $this->execute();
+        $pdosmt = $this->execute()['pdosmt'];
         return $pdosmt->fetchAll();
     }
 
@@ -324,19 +335,37 @@ class DB
         $this->fields = '*';
         $this->sql = [];
         $this->join = '';
+        $this->orderby = [];
+    }
+
+    /**
+     * @param array $values 键(字段名)值对
+     * @param bool $force_align 是否为固定列
+     * @return mixed
+     */
+    public function insert($values, $force_align = true)
+    {
+        //如果不是二维数组,则封装成二维数组
+        if (!is_array(reset($values))) {
+            $values = [$values];
+        }
+        return $this->batchInsert($values, $force_align);
     }
 
     /**
      * 批量执行 insert
      *
-     * @param array $values
-     * @param bool $force_align 是否为固定列
+     * @param array $values 待插入
+     * @param boolean $force_align 是否为固定列
+     * @return mixed
      */
-    public function batchInsert($values, $force_align = true)
+    private function batchInsert($values, $force_align)
     {
         if ($force_align) {
             foreach ($values as $val) {
+                // 键排序
                 ksort($val);
+                // 提取值
                 foreach ($val as $v) {
                     $all_vals[] = $v;
                 }
@@ -345,12 +374,18 @@ class DB
             $field_keys_str = implode(',', array_keys($val));
             //构造占位符ph === placeholder
             $ph = [];
+            // 填充固定个'?'
             $ph = array_pad($ph, count($val), '?');
+            // ','分割'?'
+            // ?,?
             $ph = implode(',', $ph);
             $all_placeholder = '';
+            // 填充多行'?'并用(),包裹
+            // (?,?,?),(?,?,?),
             for ($i = 0; $i < count($values); $i++) {
                 $all_placeholder .= "({$ph}),";
             }
+            // 去掉最后一个','
             $all_placeholder = rtrim($all_placeholder, ',');
             $this->sql = [
                 'sql' => "insert into `{$this->table}` ({$field_keys_str}) values {$all_placeholder}",
@@ -362,17 +397,74 @@ class DB
             foreach ($values as $val) {
                 //构造占位符ph === placeholder
                 $ph = [];
+                // 填充固定个'?'
                 $ph = array_pad($ph, count($val), '?');
+                // ','分割'?'
+                // ?,?
                 $ph = implode(',', $ph);
+                // 提取数组key用','分割
+                // title,content
                 $field_keys_str = implode(',', array_keys($val));
+                // 拼接所有insert sql语句
                 $this->sql['sql'] .= "insert into `{$this->table}` ({$field_keys_str}) values ({$ph});\n";
                 foreach ($val as $v) {
                     $this->sql['value'][] = $v;
                 }
             }
         }
-        $this->execute();
+        return $this->execute()['status'];
     }
+
+    /**
+     * @param string $field 按什么字段排序
+     * @param string $dir 排序规则
+     * @return $this
+     */
+    public function orderBy($field, $dir = 'DESC')
+    {
+        $this->orderby[] = [$field, $dir = 'DESC'];
+        return $this;
+    }
+
+    /**
+     * 按照参数 $data 提供更新数据
+     *
+     * @param array $data 键(字段名)值对
+     * @return bool
+     */
+    public function update($data)
+    {
+        if (empty($data)) {
+            return false;
+        }
+        $SET = ' SET ';
+        $values = [];
+        foreach ($data as $k => $v) {
+            $SET .= "`{$k}`=?,";
+            $values[] = $v;
+        }
+        $SET = rtrim($SET, ',');
+
+        list($WHERE, $VAL) = $this->genWhere();
+        $this->sql['sql'] = "UPDATE `{$this->table}` {$SET} {$WHERE}";
+        $this->sql['value'] = array_merge($values, $VAL);
+        return $this->execute()['status'];
+    }
+
+    /**
+     *
+     * @return mixed
+     */
+    public function delete()
+    {
+        list($WHERE, $VAL) = $this->genWhere();
+
+        $this->sql['sql'] = "DELETE from `{$this->table}` {$WHERE}";
+        $this->sql['value'] = $VAL;
+
+        return $this->execute()['status'];
+    }
+
 
     /**
      * 准备要执行的语句，执行一条预处理语句
@@ -387,6 +479,9 @@ class DB
             print_r($pdosmt->errorInfo());
         }
         $this->clear();
-        return $pdosmt;
+        return [
+            'pdosmt' => $pdosmt,
+            'status' => $r
+        ];
     }
 }
