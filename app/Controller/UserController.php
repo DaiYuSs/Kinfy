@@ -75,6 +75,13 @@ class UserController extends BaseController
 
     public function userList()
     {
-        echo '查看用户列表';
+//        echo '查看用户列表';
+        $user = new User();
+        $isadmin = false;
+        if (!$isadmin) {
+            $user->fieldView['mobile'] = '****';
+        }
+        $data = $user->get();
+        print_r($data);
     }
 }

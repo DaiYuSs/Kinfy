@@ -26,6 +26,12 @@ class Model
     protected $pk = 'id';
     // 主键是否是由数据库自动生成的
     protected $autoPk = true;
+    // 不允许批量添加的数据库字段
+    protected $guarded = [];
+    // 允许批量添加的数据库字段
+    protected $fillable = [];
+    // 隐藏指定的数据库字段值
+    public $fieldView = [];
 
     /**
      * 构造函数,初始化当前实例对应的数据表,初始化当前实例对应的数据库对象
@@ -68,22 +74,53 @@ class Model
     }
 
     /**
-     * 往数据库添加的时候,属性名fielName 转换成 file_name 形式
+     * 添加时的数据库字段转换规则
      *
+     * @param string $name
+     * @return string
      */
-    protected function filterFields()
+    protected function property2field(string $name)
     {
         if (empty($this->property2field)) {
             $this->property2field = array_flip($this->field2property);
         }
-        foreach ($this->properties as $k => $v) {
-            if (isset($this->property2field[$k])) {
-                $k = $this->property2field[$k];
-            } else {
-                if ($this->autoCamelCase) {
-                    $k = $this->camel2snake($k);
-                }
+        if (isset($this->property2field[$name])) {
+            return $this->property2field[$name];
+        } else {
+            if ($this->autoCamelCase) {
+                return $this->camel2snake($name);
             }
+        }
+    }
+
+    /**
+     * 往数据库添加的时候,属性名fielName 转换成 file_name 形式
+     * 同时要删除禁止批量赋值的列
+     *
+     * @param array $data
+     */
+    protected function filterFields(array $data = [])
+    {
+        if ($data) {
+            foreach ($data as $k => $v) {
+                $k = $this->property2field($k);
+                // 如果白名单有内容,且字段不在白名单就跳过
+                if ($this->fillable) {
+                    if (!isset($this->fillable[$k])) {
+                        continue;
+                    }
+                }
+                // 如果黑名单有内容,且字段不在黑名单就跳过
+                if ($this->guarded) {
+                    if (isset($this->guarded[$k])) {
+                        continue;
+                    }
+                }
+                $this->fields[$k] = $v;
+            }
+        }
+        foreach ($this->properties as $k => $v) {
+            $k = $this->property2field($k);
             $this->fields[$k] = $v;
         }
     }
@@ -96,35 +133,42 @@ class Model
      */
     protected function filterProperties($data)
     {
-        if (empty($this->field2property) && !$this->autoCamelCase) {
+        // 没有自定义列名转换规则,同时也关闭了自动转换规则,且没有隐藏列,则直接返回
+        if (empty($this->field2property) && !$this->autoCamelCase && empty($this->fieldView)) {
             return $data;
         }
         $new_data = [];
         foreach ($data as $k => $v) {
+            $k2 = $k;
+            // 查看是否有自定义的转换规则
             if (isset($this->field2property[$k])) {
-                $k = $this->field2property[$k];
-            } else {
-                if ($this->autoCamelCase) {
-                    $k = $this->snake2camel($k);
-                }
+                $k2 = $this->field2property[$k];
+                // 是否开启了自动转换
+            } elseif ($this->autoCamelCase) {
+                $k2 = $this->snake2camel($k);
             }
-            $new_data[$k] = $v;
+            // 是否有设置字段为隐藏内容
+            if (isset($this->fieldView[$k])) {
+                $new_data[$k2] = $this->fieldView[$k];
+            } else {
+                $new_data[$k2] = $v;
+            }
         }
         return $new_data;
     }
 
     /**
-     * 第二个开始判断,如果是大写字母,且该字母前一个不是大写或者下划线
      * camelSnake 转换成 camel_snake
      *
-     * @param string $str
-     * @return string
+     * @param string $str 数据库字段名
+     * @return string 固定小写字段名
      */
     protected function camel2snake($str)
     {
         $s = '';
         $str = str_split($str);
         foreach ($str as $k => $v) {
+            // 第二个开始判断,如果是大写字母,且该字母前一个不是大写或者下划线,则添加'_'
             if (
                 $k > 0 &&
                 $this->isUpper($str[$k]) &&
@@ -139,7 +183,6 @@ class Model
     }
 
     /**
-     * 按照'_'分割,除第一个单词外,首字母统一大写
      * camel_snake 转换成 camelSnake
      *
      * @param string $str
@@ -148,8 +191,10 @@ class Model
     protected function snake2camel($str)
     {
         $c = '';
+        // 按照'_'分割
         $str_arr = explode('_', $str);
         foreach ($str_arr as $k => $s) {
+            // 除第一个单词外,首字母统一大写
             if ($k > 0) {
                 $s = ucfirst($s);
             }
@@ -172,8 +217,8 @@ class Model
     /**
      * 读取一个不存在的属性名的时候, 自动到实例的properties属性数组里去获取
      *
-     * @param string $name
-     * @return mixed
+     * @param $name
+     * @return string
      */
     public function __get($name)
     {
@@ -199,8 +244,8 @@ class Model
     /**
      * 当调用一个不存在的实例方法时,则自动调用DB类的方法
      *
-     * @param string $name
-     * @param array $arguments
+     * @param $name
+     * @param $arguments
      * @return $this|array
      */
     public function __call($name, $arguments)
@@ -211,6 +256,7 @@ class Model
         if (!$this->isTerminalMethod($name)) {
             return $this;
         }
+        // 如果未自定义规则,未开启自动转换,则不转换直接返回
         if (empty($this->field2property) && !$this->autoCamelCase) {
             return $r;
         }
@@ -246,29 +292,30 @@ class Model
     }
 
     /**
+     * 新增或者更新方法,取决于主键是否有值
      *
-     *
-     * @param bool $isAdd
+     * @param array $data
      * @return mixed
      */
-    public function save($isAdd = false)
+    public function save(array $data = [])
     {
-        // 如果强制添加,或者没有主键,则添加,否则更新
-        if ($isAdd || !$this->havePk()) {
-            return $this->add();
+        // 如果没有主键,则添加,否则更新
+        if (!$this->havePk()) {
+            return $this->add($data);
         }
-        return $this->update();
+        return $this->update($data);
     }
 
     /**
      * 预先处理写进去的数据库字段名称，把属性名转换成数据库字段名,执行DB类的 insert 操作
      * $this->filterFields();多个场所可能使用到此方法,所以没有封装到save里面
      *
+     * @param array $data
      * @return mixed
      */
-    private function add()
+    private function add(array $data)
     {
-        $this->filterFields();
+        $this->filterFields($data);
         // 如果字段主键是自动生成的,则删除主键的值
         if ($this->autoPk) {
             unset($this->fields[$this->pk]);
@@ -282,11 +329,12 @@ class Model
      * 预先处理写进去的数据库字段，把属性名转换成数据库字段名,执行DB类的 update 操作
      * $this->filterFields();多个场所可能使用到此方法,所以没有封装到save里面
      *
+     * @param array $data
      * @return bool
      */
-    private function update()
+    private function update(array $data)
     {
-        $this->filterFields();
+        $this->filterFields($data);
         $k = $this->pk;
         $v = $this->fields[$this->pk];
 

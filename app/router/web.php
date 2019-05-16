@@ -46,7 +46,7 @@ Router::rule('id', '\d+');
 Router::GET(
     '/user/{uid}/article',
     'UserController@article',
-    ['uid'=>'\d+']
+    ['uid' => '\d+']
 );
 
 Router::GET(
@@ -57,4 +57,9 @@ Router::GET(
 Router::GET(
     '/book/add',
     'BookController@add'
+);
+
+Router::GET(
+    '/user/list',
+    'UserController@userList'
 );
