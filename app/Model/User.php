@@ -23,4 +23,16 @@ class User extends BaseModel
 //        $user = $this->where('id',$id)->first();
 //        print_r($user);
 //    }
+
+    /**
+     * 借书案例
+     * @param $book
+     */
+    public function borrow($book)
+    {
+        UserBook::add([
+            'user_id' => $this->properties[$this->pk],
+            'book_id' => $book->properties[$book->pk]
+        ]);
+    }
 }

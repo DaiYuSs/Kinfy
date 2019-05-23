@@ -36,9 +36,9 @@ class Model
     /**
      * 构造函数,初始化当前实例对应的数据表,初始化当前实例对应的数据库对象
      *
-     * Model constructor.
+     * @param null $id 如果传入id,则默认查找当前id的内容
      */
-    public function __construct()
+    public function __construct($id = null)
     {
         if (!$this->table) {
             // 返回对象的类名,包括命名空间
@@ -50,6 +50,9 @@ class Model
             $this->DB = new DB();
         }
         $this->DB->table($this->table);
+        if ($id != null) {
+            $this->where('id', $id)->first();
+        }
     }
 
     /**
@@ -94,6 +97,23 @@ class Model
     }
 
     /**
+     * 读取时的数据库字段转换规则
+     *
+     * @param string $name
+     * @return string
+     */
+    protected function field2property($name)
+    {
+        if (isset($this->field2property[$name])) {
+            return $this->field2property[$name];
+        }
+        if ($this->autoCamelCase) {
+            return $this->snake2camel($name);
+        }
+        return $name;
+    }
+
+    /**
      * 往数据库添加的时候,属性名fielName 转换成 file_name 形式
      * 同时要删除禁止批量赋值的列
      *
@@ -101,27 +121,30 @@ class Model
      */
     protected function filterFields(array $data = [])
     {
+        // 批量添加的数据，经过黑白名单过滤
         if ($data) {
             foreach ($data as $k => $v) {
                 $k = $this->property2field($k);
                 // 如果白名单有内容,且字段不在白名单就跳过
+                // 如果设置了白名单，以白名单为准，否则以黑名单为准
                 if ($this->fillable) {
-                    if (!isset($this->fillable[$k])) {
+                    if (!in_array($k, $this->fillable)) {
                         continue;
                     }
                 }
                 // 如果黑名单有内容,且字段不在黑名单就跳过
                 if ($this->guarded) {
-                    if (isset($this->guarded[$k])) {
+                    if (in_array($k, $this->guarded)) {
                         continue;
                     }
                 }
                 $this->fields[$k] = $v;
             }
         }
-        foreach ($this->properties as $k => $v) {
-            $k = $this->property2field($k);
-            $this->fields[$k] = $v;
+        // 手工添加的数据不过滤
+        foreach ($this->properties as $k2 => $v2) {
+            $k2 = $this->property2field($k2);
+            $this->fields[$k2] = $v2;
         }
     }
 
@@ -139,14 +162,8 @@ class Model
         }
         $new_data = [];
         foreach ($data as $k => $v) {
-            $k2 = $k;
             // 查看是否有自定义的转换规则
-            if (isset($this->field2property[$k])) {
-                $k2 = $this->field2property[$k];
-                // 是否开启了自动转换
-            } elseif ($this->autoCamelCase) {
-                $k2 = $this->snake2camel($k);
-            }
+            $k2 = $this->field2property($k);
             // 是否有设置字段为隐藏内容
             if (isset($this->fieldView[$k])) {
                 $new_data[$k2] = $this->fieldView[$k];
@@ -159,6 +176,9 @@ class Model
 
     /**
      * camelSnake 转换成 camel_snake
+     * camelSNAKE        camel_snake
+     * camel_SNAKE       camel_snake
+     * camel_SNAKeName   camel_snake_name
      *
      * @param string $str 数据库字段名
      * @return string 固定小写字段名
@@ -233,6 +253,7 @@ class Model
      */
     private function isTerminalMethod($name)
     {
+        $name = strtolower($name);
         $m = [
             'get',
             'first',
@@ -242,15 +263,37 @@ class Model
     }
 
     /**
+     * 在该数组里的方法,自动会调用自身带下划线对应的方法
+     *
+     * @param $name 方法名
+     * @return bool
+     */
+    private function isSelfMethod($name)
+    {
+        $name = strtolower($name);
+        $m = [
+            'add',
+            'update',
+            'save'
+        ];
+        return in_array($name, $m);
+    }
+
+    /**
      * 当调用一个不存在的实例方法时,则自动调用DB类的方法
      *
-     * @param $name
-     * @param $arguments
+     * @param string $name 方法名
+     * @param array $arguments 参数
      * @return $this|array
      */
     public function __call($name, $arguments)
     {
         $name = strtolower($name);
+        // 如果是调用自身的,则不调用DB
+        if ($this->isSelfMethod($name)) {
+            $sname = '_' . $name;
+            return $this->{$sname}(...$arguments);
+        }
         $r = $this->DB->{$name}(...$arguments);
         //如果不是结束节点(获取数据)
         if (!$this->isTerminalMethod($name)) {
@@ -285,10 +328,21 @@ class Model
     public static function __callStatic($name, $arguments)
     {
         // 当静态实例未被定义时,自动实例化
+        return static::getInstance()->{$name}(...$arguments);
+    }
+
+    /**
+     * 当执行静态代码时,自身有一个实例static::$instance
+     * 返回静态的共用的实例
+     *
+     * @return $this
+     */
+    public static function getInstance()
+    {
         if (!static::$instance) {
             static::$instance = new static();
         }
-        return static::$instance->{$name}(...$arguments);
+        return static::$instance;
     }
 
     /**
@@ -297,7 +351,7 @@ class Model
      * @param array $data
      * @return mixed
      */
-    public function save(array $data = [])
+    public function _save(array $data = [])
     {
         // 如果没有主键,则添加,否则更新
         if (!$this->havePk()) {
@@ -313,8 +367,9 @@ class Model
      * @param array $data
      * @return mixed
      */
-    private function add(array $data)
+    private function _add(array $data)
     {
+        // 预先处理写进去的数据库字段，把属性名转换成数据库字段名
         $this->filterFields($data);
         // 如果字段主键是自动生成的,则删除主键的值
         if ($this->autoPk) {
@@ -332,7 +387,7 @@ class Model
      * @param array $data
      * @return bool
      */
-    private function update(array $data)
+    private function _update(array $data)
     {
         $this->filterFields($data);
         $k = $this->pk;
@@ -340,7 +395,7 @@ class Model
 
         unset($this->fields[$this->pk]);
         return $this->DB
-            ->where($k, '=', $v)
+            ->where($k, $v)
             ->update($this->fields);
     }
 
@@ -352,16 +407,5 @@ class Model
     public function havePk()
     {
         return (isset($this->fields[$this->pk]) && $this->fields[$this->pk] !== null);
-    }
-
-    /**
-     * 当执行静态代码时,自身有一个实例static::$instance
-     * 返回静态的共用的实例
-     *
-     * @return $this|null
-     */
-    public static function getInstance()
-    {
-        return static::$instance;
     }
 }

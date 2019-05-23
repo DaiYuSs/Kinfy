@@ -63,3 +63,8 @@ Router::GET(
     '/user/list',
     'UserController@userList'
 );
+
+Router::POST(
+    '/user/add',
+    'BookController@add'
+);

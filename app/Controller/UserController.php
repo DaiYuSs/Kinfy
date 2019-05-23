@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Model\Article;
 use App\Model\User;
+use App\Model\UserBook;
 use Kinfy\DB\DB;
 
 class UserController extends BaseController
@@ -17,6 +18,7 @@ class UserController extends BaseController
     {
         $user = new User();
         $user->name = '3378';
+        $user->mobile = 13777777777;
         $user->save();
 //
 //        $r = User::insert([
@@ -83,5 +85,18 @@ class UserController extends BaseController
         }
         $data = $user->get();
         print_r($data);
+    }
+
+    /**
+     * 用户借书案例
+     * @param $book
+     */
+    public function borrow($book)
+    {
+        $ub= new UserBook();
+        $ub->save([
+            'user_id'=>41,
+            'book_id'=>'asdasdasdasd'
+        ]);
     }
 }
