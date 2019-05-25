@@ -68,3 +68,6 @@ Router::POST(
     '/user/add',
     'BookController@add'
 );
+
+// 模板首页路由
+Router::GET('article', 'ArticleController@bladeIndex');

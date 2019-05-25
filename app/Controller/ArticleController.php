@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use Kinfy\DB\DB;
+use Kinfy\View\View;
 
 class ArticleController extends BaseController
 {
@@ -54,5 +55,23 @@ class ArticleController extends BaseController
 //            ->where('id', '=', 8)
 //            ->delete();
 //        print_r($data);
+    }
+
+    /**
+     * 模板首页
+     */
+    public function bladeIndex()
+    {
+        $view = new View();
+        $view->theme = 'school';
+        $view->suffix = '.html';
+        $view->set('title','金飞科技');
+        $view->set('subtitle','首页');
+        $view->set('header_icon',[
+            ['class'=>'icon-location2','text'=>'浙江温州瓯海茶山街道'],
+            ['class'=>'icon-phone2','text'=>'0577-8888888'],
+            ['class'=>'icon-mail','text'=>'vip@kinfy.com'],
+        ]);
+        $view->show('index');
     }
 }
