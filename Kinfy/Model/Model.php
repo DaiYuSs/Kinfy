@@ -24,13 +24,13 @@ class Model
     protected $autoCamelCase = true;
     // 模型对应的数据库的主键
     protected $pk = 'id';
-    // 主键是否是由数据库自动生成的
+    // 主键是否是由数据库自动生成（比如，自增主键）
     protected $autoPk = true;
     // 不允许批量添加的数据库字段
     protected $guarded = [];
     // 允许批量添加的数据库字段
     protected $fillable = [];
-    // 隐藏指定的数据库字段值
+    // 隐藏指定字段值
     public $fieldView = [];
 
     /**
@@ -51,7 +51,9 @@ class Model
         }
         $this->DB->table($this->table);
         if ($id != null) {
-            $this->where('id', $id)->first();
+            $this->DB->where($this->pk, $id);
+            //不能调用DB的first,因为自己的first有做字段过滤
+            $this->first();
         }
     }
 
@@ -89,11 +91,11 @@ class Model
         }
         if (isset($this->property2field[$name])) {
             return $this->property2field[$name];
-        } else {
-            if ($this->autoCamelCase) {
-                return $this->camel2snake($name);
-            }
         }
+        if ($this->autoCamelCase) {
+            return $this->camel2snake($name);
+        }
+        return $name;
     }
 
     /**
@@ -248,10 +250,10 @@ class Model
     /**
      * 检测方法是否为DB类的终端方法
      *
-     * @param $name
-     * @return bool
+     * @param string $name 方法名
+     * @return bool 是否匹配值(true|false)
      */
-    private function isTerminalMethod($name)
+    private function isTerminalMethod(string $name)
     {
         $name = strtolower($name);
         $m = [
@@ -265,10 +267,10 @@ class Model
     /**
      * 在该数组里的方法,自动会调用自身带下划线对应的方法
      *
-     * @param $name 方法名
-     * @return bool
+     * @param string $name 方法名
+     * @return bool 是否匹配值(true|false)
      */
-    private function isSelfMethod($name)
+    private function isSelfMethod(string $name)
     {
         $name = strtolower($name);
         $m = [
@@ -351,7 +353,7 @@ class Model
      * @param array $data
      * @return mixed
      */
-    public function _save(array $data = [])
+    private function _save(array $data = [])
     {
         // 如果没有主键,则添加,否则更新
         if (!$this->havePk()) {
