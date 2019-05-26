@@ -330,7 +330,7 @@ class DB
     public function clear()
     {
         $this->where = [];
-        $this->table = '';
+        //$this->table = '';,表名不清除，让模型只需赋值一次
         $this->limit = [];
         $this->fields = '*';
         $this->sql = [];
@@ -362,17 +362,18 @@ class DB
     private function batchInsert($values, $force_align)
     {
         if ($force_align) {
+            $all_vals = [];
+            //提取所有的值
             foreach ($values as $val) {
                 // 键排序
                 ksort($val);
-                // 提取值
                 foreach ($val as $v) {
                     $all_vals[] = $v;
                 }
             }
-            //获取最后一条数据的所有键,并用，分割
+            // 获取最后一条数据的所有键,并用，分割
             $field_keys_str = implode(',', array_keys($val));
-            //构造占位符ph === placeholder
+            // 构造占位符ph === placeholder
             $ph = [];
             // 填充固定个'?'
             $ph = array_pad($ph, count($val), '?');
@@ -422,7 +423,7 @@ class DB
      */
     public function orderBy($field, $dir = 'DESC')
     {
-        $this->orderby[] = [$field, $dir = 'DESC'];
+        $this->orderby[] = [$field, $dir];
         return $this;
     }
 
@@ -440,7 +441,7 @@ class DB
         $SET = ' SET ';
         $values = [];
         foreach ($data as $k => $v) {
-            $SET .= "`{$k}`=?,";
+            $SET .= "`{$k}` = ?,";
             $values[] = $v;
         }
         $SET = rtrim($SET, ',');
@@ -465,11 +466,10 @@ class DB
         return $this->execute()['status'];
     }
 
-
     /**
-     * 准备要执行的语句，执行一条预处理语句
+     * 准备要执行的语句，执行一条预处理语句,返回DB结果与状态
      *
-     * @return bool|\PDOStatement
+     * @return array
      */
     private function execute()
     {
