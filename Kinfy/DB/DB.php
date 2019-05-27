@@ -484,4 +484,16 @@ class DB
             'status' => $r
         ];
     }
+
+    /**
+     * 只获取一条数据的某一个属性
+     *
+     * @param string $field 列名
+     * @return string
+     */
+    public function value($field)
+    {
+        $data[$field] = $this->first()[$field];
+        return $data;
+    }
 }

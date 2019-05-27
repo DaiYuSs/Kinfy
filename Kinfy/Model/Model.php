@@ -79,7 +79,7 @@ class Model
     }
 
     /**
-     * 添加时的数据库字段转换规则
+     * 属性转换数据库字段规则
      *
      * @param string $name
      * @return string
@@ -99,7 +99,7 @@ class Model
     }
 
     /**
-     * 读取时的数据库字段转换规则
+     * 数据库字段转换属性规则
      *
      * @param string $name
      * @return string
@@ -116,8 +116,23 @@ class Model
     }
 
     /**
+     * 暂废弃
+     * 执行DB方法前,将传入的参数名进行转换成数据库字段对应的参数名
+     *
+     * @param array $arguments 需要被转换的参数名
+     * @return array 转换后的参数组
+     */
+//    protected function filterArguments(array $arguments)
+//    {
+//        foreach ($arguments as &$v) {
+//            $v = $this->property2field($v);
+//        }
+//        return $arguments;
+//    }
+
+    /**
      * 往数据库添加的时候,属性名fielName 转换成 file_name 形式
-     * 同时要删除禁止批量赋值的列
+     * 同时经过黑白名单过滤
      *
      * @param array $data
      */
@@ -259,7 +274,7 @@ class Model
         $m = [
             'get',
             'first',
-            'insert'
+            'value'
         ];
         return in_array($name, $m);
     }
@@ -290,6 +305,7 @@ class Model
      */
     public function __call($name, $arguments)
     {
+        // $arguments = $this->filterArguments($arguments);
         $name = strtolower($name);
         // 如果是调用自身的,则不调用DB
         if ($this->isSelfMethod($name)) {
@@ -315,6 +331,9 @@ class Model
                 foreach ($r as $k => $v) {
                     $this->$k = $v;
                 }
+            } elseif ($name == 'value') {
+                $r = $this->filterProperties($r);
+                return array_values($r)[0];
             }
         }
         return $r;

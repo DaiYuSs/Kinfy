@@ -93,10 +93,23 @@ class UserController extends BaseController
      */
     public function borrow($book)
     {
-        $ub= new UserBook();
+        $ub = new UserBook();
         $ub->save([
-            'user_id'=>41,
-            'book_id'=>'asdasdasdasd'
+            'user_id' => 41,
+            'book_id' => 'asdasdasdasd'
         ]);
+    }
+
+    /**
+     * 由路由指定的id和数据库字段名来查询数据
+     *
+     * @param string|int $user_id 用户id
+     * @param string $field 指定列名
+     */
+    public function userInfo($user_id, $field)
+    {
+        $user = new User();
+        $data = $user->where('id', $user_id)->value($field);
+        print_r($data);
     }
 }

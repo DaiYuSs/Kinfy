@@ -50,6 +50,12 @@ Router::GET(
 );
 
 Router::GET(
+    '/user/{uid}/{info}',
+    'UserController@userInfo'
+//    ['uid' => '\d+']
+);
+
+Router::GET(
     '/user/add/{name}',
     'UserController@add'
 );
