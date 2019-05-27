@@ -8,10 +8,14 @@ class Blade implements IEngine
     public $base_dir = '';
     // 模板子模板数组
     protected $sub_tpls = [];
+    // 模板对应的父模板路径数组
+    protected $tpl_parents = [];
     // 模板定界符
     public $tag = ['{', '}'];
     // 要处理的模板字符串
     public $template = '';
+    // 当前解析的模板名称
+    public $tpl = '';
     // 模板后缀
     public $suffix = '';
 
@@ -21,27 +25,27 @@ class Blade implements IEngine
      */
     public function compiling()
     {
-//        // TODO: Implement compiling() method.
-//        // layout又叫master支持,母版
-//        $this->extendsExp();
-//
-//        // 执行include调用
+        // TODO: Implement compiling() method.
+        // layout又叫master支持,母版
+        // $this->extendsExp();
+
+        // 执行include调用
         $this->template = $this->includeExp();
-//
-//        // 执行判断语句
-//        $this->ifExp();
-//        $this->elseIfExp();
-//        $this->elseExp();
-//        $this->endIfExp();
-//
-//        // 循环语句
+
+        // 执行判断语句
+        // $this->ifExp();
+        // $this->elseIfExp();
+        // $this->elseExp();
+        // $this->endIfExp();
+
+        // 循环语句
         $this->loopExp();
         $this->endLoopExp();
-//
-//        // 变量
+
+        // 变量
         $this->varExp();
 
-//        $this->template = '开始编译:' . $this->template . ':编译结束';6
+        // $this->template = '开始编译:' . $this->template . ':编译结束';6
 
     }
 
@@ -66,6 +70,7 @@ class Blade implements IEngine
      * 变量转换
      * 生成查找变量正则规则
      * 生成需被替换成的php源码
+     *
      */
     public function varExp()
     {
@@ -111,64 +116,58 @@ class Blade implements IEngine
      * 常规写法{include _header}
      *
      * @param null|string $content 模板内容
+     * @param null|string $parent 当前父加载的模板名
      * @return string|string[]|null
      */
-    public function includeExp($content = null)
+    public function includeExp($content = null, $parent = null)
     {
-//        var_dump($content);
         $exp = 'include\s+(.*?)';
         $pattern = "/{$this->tag[0]}\s*{$exp}\s*{$this->tag[1]}/is";
         // 7 新特性 $content = $content ??  $this->template;
-//        if ($content) {
-//            return preg_replace_callback(
-//                $pattern,
-//                [$this, 'includeTpl'],
-//                $content
-//            );
-//        } else {
-//            $this->template = preg_replace_callback(
-//                $pattern,
-//                [$this, 'includeTpl'],
-//                $this->template
-//            );
-//        }
-//        return $content === null ?
-//            $this->template = preg_replace_callback($pattern, [$this, 'includeTpl'], $this->template) :
-//            preg_replace_callback($pattern, [$this, 'includeTpl'], $content);
         // 如果没有传入 $content ,则使用默认指定视图模板内容
-        return preg_replace_callback($pattern, [$this, 'includeTpl'], $content === null ? $this->template : $content);
+        return preg_replace_callback($pattern,
+            function ($matches) use ($parent) {
+                return $this->includeTpl($matches[1], $parent);
+            },
+            $content ?? $this->template);
     }
 
     /**
-     * 将需要加载的文件名传给 readTpl($tpl) 方法
+     * 是否死循环加载判断
+     * 获取模板内容传给includeExp替换
      *
-     * @param array $matches array(2) { [0]=> string(17) "{include _header}" [1]=> string(7) "_header" }
+     * @param string $sub 模板名
+     * @param string $parent 父(加载当前模板的模板)模板名
      * @return string|string[]|null
      */
-    protected function includeTpl($matches)
+    protected function includeTpl($sub, $parent)
     {
-        return $this->readTpl($matches[1]);
-    }
-
-    /**
-     * 避免 include 环加载，加载不存在文件
-     *
-     * @param $tpl
-     * @return string|string[]|null
-     */
-    private function readTpl($tpl)
-    {
-        // 检查模板是否死循环调用
-        if (in_array($tpl, $this->sub_tpls)) {
-            die("{$tpl} 文件调用产生死循环");
+        // 判断该模板的父模板有过加载动作
+        if (isset($this->tpl_parents[$parent])) {
+            // 获取父模板加载过的所有模板名称数组
+            $parent_path = $this->tpl_parents[$parent];
+            // 添加当前模板名称到父模板加载记录数组
+            $parent_path[] = $parent;
+            // 检查模板是否死循环调用
+            if (in_array($sub, $parent_path)) {
+                print_r($this->tpl_parents);
+                die("{$parent}调用{$sub} 文件产生死循环");
+            } else {
+                // 重新给父模板加载过的所有模板数组赋值
+                $this->tpl_parents[$sub] = $parent_path;
+            }
         } else {
-            $this->sub_tpls[] = $tpl;
+            // 初始化
+            $this->tpl_parents[$sub] = [$parent];
         }
-        $file = "{$this->base_dir}/{$tpl}{$this->suffix}";
+
+        // 读取子模版
+        $file = "{$this->base_dir}/{$sub}{$this->suffix}";
         if (!file_exists($file)) {
             die("{$file} 文件不存在,或者不可读取");
         }
+        // 获取文本内容
         $content = file_get_contents($file);
-        return $this->includeExp($content);
+        return $this->includeExp($content, $sub);
     }
 }

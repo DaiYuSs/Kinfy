@@ -142,6 +142,8 @@ class View
     public function compiling($tpl)
     {
         $c = $this->compiler;
+        // 传入最开始的模板名
+        $c->tpl = $tpl;
         $c->base_dir = $this->themeBaseDir();
         $c->suffix = $this->suffix;
         // 模板读取
