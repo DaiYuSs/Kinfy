@@ -287,9 +287,8 @@ class Router
 //        die();
         //获取请求头
         $request_type = strtoupper($_SERVER['REQUEST_METHOD']);
-        //获取请求地址
-        $url = isset($_SERVER['REDIRECT_URL']) ? $_SERVER['REDIRECT_URL'] : '/';
-        $url = rtrim($url, '/');
+        //获取请求地址,默认为'/'
+        $url = isset($_SERVER['REDIRECT_URL']) ? rtrim($_SERVER['REDIRECT_URL'], '/') : '/';
         //改变url样子
         //$url = self::router_parameter_list($request_type, $url);
         $is_matched = false;
