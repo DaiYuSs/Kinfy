@@ -18,6 +18,8 @@ class Blade implements IEngine
     public $tpl = '';
     // 模板后缀
     public $suffix = '';
+    // 母版占位符对应的内容
+    protected $tag_body = [];
 
 
     /**
@@ -27,7 +29,7 @@ class Blade implements IEngine
     {
         // TODO: Implement compiling() method.
         // layout又叫master支持,母版
-        // $this->extendsExp();
+        $this->extendsExp();
 
         // 执行include调用
         $this->template = $this->includeExp();
@@ -160,14 +162,79 @@ class Blade implements IEngine
             // 初始化
             $this->tpl_parents[$sub] = [$parent];
         }
+        return $this->readTpl($sub);
+    }
 
-        // 读取子模版
-        $file = "{$this->base_dir}/{$sub}{$this->suffix}";
+    /**
+     * 加载子模版,获取子模版内容和子模版名称传给includeExp
+     *
+     * @param string $tpl
+     * @return string|string[]|null
+     */
+    protected function readTpl($tpl)
+    {
+        // 拼接子模版地址
+        $file = "{$this->base_dir}/{$tpl}{$this->suffix}";
         if (!file_exists($file)) {
             die("{$file} 文件不存在,或者不可读取");
         }
-        // 获取文本内容
+        // 获取子模版文本内容
         $content = file_get_contents($file);
-        return $this->includeExp($content, $sub);
+        return $this->includeExp($content, $tpl);
+    }
+
+    /**
+     * extends 母版标签
+     *
+     */
+    public function extendsExp()
+    {
+        $exp = 'extends\s+(.*?)';
+        $patter = "/{$this->tag[0]}\s*{$exp}\s*{$this->tag[1]}/is";
+        // 判断当前页面是否有存在extends
+        $ismatch = preg_match($patter, $this->template, $matches);
+        if ($ismatch) {
+            // 母版内容
+            $master = $this->readTpl($matches[1]);
+            $this->getTagBody($master);
+            $exp_ph = '@(.*?)';
+            $patter_ph = "/{$this->tag[0]}\s*{$exp_ph}\s*{$this->tag[1]}/is";
+            // 继承母版内容并替换完插槽
+            $this->template = preg_replace_callback($patter_ph, [$this, 'replaceTag'], $master);
+        }
+    }
+
+    /**
+     * 判断当前页是否有定义相应插槽数据
+     *
+     * @param array $matches Array([0] => {@news_footer},[1] => news_footer)
+     * @return mixed|string
+     */
+    private function replaceTag($matches)
+    {
+        return $this->tag_body[$matches[1]] ?? '';
+    }
+
+    /**
+     * 获取母版插槽名称,根据名称来查找当前页面是否有定义插槽内容
+     *
+     * @param string $master 母版全部内容
+     */
+    private function getTagBody($master)
+    {
+        $exp = '@(.*?)';
+        $patter = "/{$this->tag[0]}\s*{$exp}\s*{$this->tag[1]}/is";
+        // 查找母版内插槽名称赋值给$matches 0=>母版全称,1是去掉@符号的真实名称
+        preg_match_all($patter, $master, $matches);
+        $this->tag_body = [];
+        foreach ($matches[1] as $ph) {
+            // $ph = new_body  {news_body}(.*?){/news_body}
+            $patter_ph = "/{$this->tag[0]}\s*({$ph})\s*{$this->tag[1]}(.*?){$this->tag[0]}\s*\/{$ph}\s*{$this->tag[1]}/is";
+            // 根据规则,在当前页面内容 $this->template 查找母版插槽名下的内容
+            $ismatched = preg_match($patter_ph, $this->template, $matches_ph);
+            if ($ismatched) {
+                $this->tag_body[$matches_ph[1]] = $matches_ph[2];
+            }
+        }
     }
 }

@@ -5,7 +5,7 @@ namespace App\Controller;
 use Kinfy\DB\DB;
 use Kinfy\View\View;
 
-class ArticleController extends BaseController
+class ArticleController
 {
     public function index()
     {
@@ -65,13 +65,66 @@ class ArticleController extends BaseController
         $view = new View();
         $view->theme = 'school';
         $view->suffix = '.html';
-        $view->set('title','金飞科技');
-        $view->set('subtitle','首页');
-        $view->set('header_icon',[
-            ['class'=>'icon-location2','text'=>'浙江温州瓯海茶山街道'],
-            ['class'=>'icon-phone2','text'=>'0577-8888888'],
-            ['class'=>'icon-mail','text'=>'vip@kinfy.com'],
+        $view->set('title', '金飞科技');
+        $view->set('subtitle', '首页');
+        $view->set('header_icon', [
+            ['class' => 'icon-location2', 'text' => '浙江温州瓯海茶山街道'],
+            ['class' => 'icon-phone2', 'text' => '0577-8888888'],
+            ['class' => 'icon-mail', 'text' => 'vip@kinfy.com'],
         ]);
         $view->show('index');
+    }
+
+    /**
+     * 新闻主页面
+     */
+    public function news()
+    {
+        $view = new View();
+        $view->theme = 'school';
+        $view->suffix = '.html';
+        $view->set('title', '金飞科技');
+        $view->set('subtitle', '新闻');
+        $view->set('header_icon', [
+            ['class' => 'icon-location2', 'text' => '浙江温州瓯海茶山街道'],
+            ['class' => 'icon-phone2', 'text' => '0577-8888888'],
+            ['class' => 'icon-mail', 'text' => 'vip@kinfy.com'],
+        ]);
+        $view->show('news');
+    }
+
+    /**
+     * 新闻页面,母版插槽测试页面
+     */
+    public function news2()
+    {
+        $view = new View();
+        $view->theme = 'school';
+        $view->suffix = '.html';
+        $view->set('title', '金飞科技');
+        $view->set('subtitle', '新闻');
+        $view->set('header_icon', [
+            ['class' => 'icon-location2', 'text' => '浙江温州瓯海茶山街道'],
+            ['class' => 'icon-phone2', 'text' => '0577-8888888'],
+            ['class' => 'icon-mail', 'text' => 'vip@kinfy.com'],
+        ]);
+        $view->show('news2');
+    }
+    /**
+     * 新闻页面,母版插槽测试页面
+     */
+    public function news3()
+    {
+        $view = new View();
+        $view->theme = 'school';
+        $view->suffix = '.html';
+        $view->set('title', '金飞科技');
+        $view->set('subtitle', '新闻');
+        $view->set('header_icon', [
+            ['class' => 'icon-location2', 'text' => '浙江温州瓯海茶山街道'],
+            ['class' => 'icon-phone2', 'text' => '0577-8888888'],
+            ['class' => 'icon-mail', 'text' => 'vip@kinfy.com'],
+        ]);
+        $view->show('news3');
     }
 }

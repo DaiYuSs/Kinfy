@@ -77,3 +77,7 @@ Router::POST(
 
 // 模板首页路由
 Router::GET('article', 'ArticleController@bladeIndex');
+Router::GET('/', 'ArticleController@bladeIndex');
+Router::GET('/article/news','ArticleController@news');
+Router::GET('/article/news2','ArticleController@news2');
+Router::GET('/article/news3','ArticleController@news3');
