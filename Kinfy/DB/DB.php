@@ -2,6 +2,7 @@
 
 namespace Kinfy\DB;
 
+use Kinfy\Config\Config;
 use PDO;
 
 class DB
@@ -22,15 +23,7 @@ class DB
      */
     public function __construct($conf = null)
     {
-        if ($conf == null) {
-            $conf = [
-                'dbms' => 'mysql',
-                'host' => '127.0.0.1',
-                'name' => 'kinfy',
-                'user' => 'root',
-                'pass' => 'root'
-            ];
-        }
+        $conf = $conf ?? Config::get('db');
         $dsn = "{$conf['dbms']}:host={$conf['host']};dbname={$conf['name']}";
         try {
             //开始连接数据库
@@ -58,12 +51,25 @@ class DB
         return $this;
     }
 
+    /**
+     * 根据指定条件获取数据
+     *
+     * @param int $offset 跳过多少条数据
+     * @param int $num 取多少个数据
+     * @return $this
+     */
     public function limit($offset, $num)
     {
         $this->limit = [$offset, $num];
         return $this;
     }
 
+    /**
+     * 从数据库第一条开始取数据
+     *
+     * @param int $num 取多少个数据
+     * @return $this
+     */
     public function take($num)
     {
         return $this->limit(0, $num);
@@ -339,6 +345,8 @@ class DB
     }
 
     /**
+     * 将数据进行微处理转给 batchInsert 方法
+     *
      * @param array $values 键(字段名)值对
      * @param bool $force_align 是否为固定列
      * @return mixed
@@ -453,6 +461,7 @@ class DB
     }
 
     /**
+     * 执行sql删除语句
      *
      * @return mixed
      */

@@ -2,9 +2,10 @@
 
 namespace Kinfy\View;
 
-use Kinfy\View\engine\Blade;
+use Kinfy\Config\Config;
+use Kinfy\View\engine\IEngine;
 
-class View
+class View implements IView
 {
     // 模板引擎所用的编译器
     public $compiler = null;
@@ -17,13 +18,13 @@ class View
     // 主题 theme
     // 皮肤 skin       // 不影响功能,小改动
     // 模板 template   // 大改动
-    public $theme = 'default';
+    public $theme = '';
     // 模板主题根目录
     //public $base = '';
     // 模板主题缓存目录
     //public $cache = '';
     // 模板文件后缀
-    public $suffix = '.tpl.php';
+    public $suffix = '';
     // 模板自动更新
     public $auto_refresh = true;
     // 模板数据
@@ -32,25 +33,30 @@ class View
     /**
      * View constructor.
      *
-     * @param null $engine 模板引擎
+     * @param IEngine|null $engine 模板引擎
+     * @param string|null $theme 主题
+     * @param string|null $suffix 后缀
      */
-    public function __construct($engine = null)
+    public function __construct($engine = null, $theme = null, $suffix = null)
     {
         // 如果传入引擎,则初始化编译器
         if ($engine) {
             $this->compiler = new $engine();
         } else {
-            $this->compiler = new Blade();
+            $engine = Config::get('view.engine');
+            $this->compiler = new $engine;
         }
-        // 生成默认视图模板路径
-        if (!$this->base_dir) {
-            // 出现在普通字符串中的路径，如果代表的是windows文件路径，则使用 斜杆/ 和 反斜杠\ 是一样的；如果代表的是网络文件路径，则必须使用 斜杆/
-            $this->base_dir = '../../kinfy/app/View/';
-        }
-        // 生成默认视图缓存路径
-        if (!$this->cache_dir) {
-            $this->cache_dir = '../../kinfy/app/Cache/';
-        }
+        // 引入配置文件,视图模板路径
+        $this->base_dir = Config::get('view.base_dir');
+
+        // 引入配置文件,视图缓存路径
+        $this->cache_dir = Config::get('view.cache_dir');
+
+        // 引入配置文件,模板主题
+        $this->theme = $theme ?? Config::get('view.theme');
+
+        // 引入配置文件,模板后缀
+        $this->suffix = $suffix ?? Config::get('view.suffix');
     }
 
     /**
@@ -115,6 +121,26 @@ class View
     public function set($name, $value)
     {
         $this->data[$name] = $value;
+    }
+
+    /**
+     * 设置主题
+     *
+     * @param string $value
+     */
+    public function setTheme($value)
+    {
+        $this->theme = $value;
+    }
+
+    /**
+     * 设置后缀
+     *
+     * @param string $value
+     */
+    public function setSuffix($value)
+    {
+        $this->suffix = $value;
     }
 
     /**
