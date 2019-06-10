@@ -1,8 +1,8 @@
 <?php
 
-if (!function_exists('copyright')) {
-    function copyright()
+if (!function_exists('config')) {
+    function config($key)
     {
-        echo 'Kinfy!';
+        return \Kinfy\Config\Config::get($key);
     }
 }

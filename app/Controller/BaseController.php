@@ -6,6 +6,6 @@ class BaseController
 {
     public function before()
     {
-        echo '全员拦截...<br>';
+        // echo '全员拦截...<br>';
     }
 }

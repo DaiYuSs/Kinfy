@@ -12,6 +12,29 @@ if (Config::get('app.status') == 'SHUTDOWN') {
     die('网站维护中！');
 }
 
+// 动态创建不存在的类Facade
+spl_autoload_register(function ($name) {
+    // 定义根命名空间的不存在的类
+    $provider = Config::get('app.providers.' . $name);
+    if (
+        strpos($name, '\\') === false
+        &&
+        $provider
+    ) {
+        // 如果定义了接口,则做接口判断
+        $provider_interface = Config::get('app.provider_interface.' . $name);
+        if ($provider_interface && !isset(class_implements($provider)[$provider_interface])) {
+            die("{$provider} 必须实现{$provider_interface} 接口");
+        }
+        // 动态定义类
+        eval("
+        class {$name} extends \Kinfy\Facade\Facade{
+            protected static \$provider = '{$provider}';
+        }
+        ");
+    }
+});
+
 // 优先加载用户自定义的函数库函数
 if (file_exists(__DIR__ . './../app/common/common_functions.php')) {
     require_once __DIR__ . './../app/common/common_functions.php';

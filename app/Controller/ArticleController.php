@@ -3,9 +3,10 @@
 namespace App\Controller;
 
 use Kinfy\DB\DB;
-use Kinfy\View\View;
+use View as V;
+use App\facade\View;
 
-class ArticleController
+class ArticleController extends BaseController
 {
     public function index()
     {
@@ -62,35 +63,17 @@ class ArticleController
      */
     public function bladeIndex()
     {
-        $view = new View();
-        $view->theme = 'school';
-        $view->suffix = '.html';
-        $view->set('title', '金飞科技');
-        $view->set('subtitle', '首页');
-        $view->set('header_icon', [
-            ['class' => 'icon-location2', 'text' => '浙江温州瓯海茶山街道'],
-            ['class' => 'icon-phone2', 'text' => '0577-8888888'],
-            ['class' => 'icon-mail', 'text' => 'vip@kinfy.com'],
-        ]);
-        $view->show('index');
+        V::show('index');
+        View::test();
+        View::show('index');
     }
 
     /**
      * 新闻主页面
      */
-    public function news()
+    public function news( )
     {
-        $view = new View();
-        $view->theme = 'school';
-        $view->suffix = '.html';
-        $view->set('title', '金飞科技');
-        $view->set('subtitle', '新闻');
-        $view->set('header_icon', [
-            ['class' => 'icon-location2', 'text' => '浙江温州瓯海茶山街道'],
-            ['class' => 'icon-phone2', 'text' => '0577-8888888'],
-            ['class' => 'icon-mail', 'text' => 'vip@kinfy.com'],
-        ]);
-        $view->show('news');
+        View::show('news');
     }
 
     /**
@@ -98,33 +81,30 @@ class ArticleController
      */
     public function news2()
     {
-        $view = new View();
-        $view->theme = 'school';
-        $view->suffix = '.html';
-        $view->set('title', '金飞科技');
-        $view->set('subtitle', '新闻');
-        $view->set('header_icon', [
-            ['class' => 'icon-location2', 'text' => '浙江温州瓯海茶山街道'],
-            ['class' => 'icon-phone2', 'text' => '0577-8888888'],
-            ['class' => 'icon-mail', 'text' => 'vip@kinfy.com'],
-        ]);
-        $view->show('news2');
+        View::show('news2');
     }
+
     /**
      * 新闻页面,母版插槽测试页面
      */
     public function news3()
     {
-        $view = new View();
-        $view->theme = 'school';
-        $view->suffix = '.html';
-        $view->set('title', '金飞科技');
-        $view->set('subtitle', '新闻');
-        $view->set('header_icon', [
+        View::show('news3');
+    }
+
+    public function __construct()
+    {
+        $this->baseNew();
+    }
+
+    public function baseNew()
+    {
+        View::set('title', '金飞科技');
+        View::set('subtitle', '首页');
+        View::set('header_icon', [
             ['class' => 'icon-location2', 'text' => '浙江温州瓯海茶山街道'],
             ['class' => 'icon-phone2', 'text' => '0577-8888888'],
             ['class' => 'icon-mail', 'text' => 'vip@kinfy.com'],
         ]);
-        $view->show('news3');
     }
 }
