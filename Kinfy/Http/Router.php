@@ -2,6 +2,8 @@
 
 namespace Kinfy\Http;
 
+use Kinfy\Config\Config;
+
 //REQUEST_METHOD
 //REDIRECT_URL
 
@@ -29,6 +31,8 @@ class Router
     private static $parameter_array = [];
     //存放group方法url前缀池
     public static $url_pre = [];
+    // 存放路由过滤的中间件
+    public static $middlewares = [];
     //存放当前注册的所有的路由规则
     public static $routes = [];
     //存放当前注册的所有正则表达式路由规则
@@ -79,29 +83,50 @@ class Router
     {
         $request_type = strtoupper($request_type);
         $pattern = self::path(implode('/', self::$url_pre) . self::path($pattern));
+        $route = [
+            'callback' => $callback,
+            'middlewares' => self::$middlewares
+        ];
 //        self::$routes[strtoupper($request_type)][$pattern] = $callback;
         //判断是否为带参路由
         $is_regx = strpos($pattern, '{') !== false;
         if (!$is_regx) {
-            self::$routes[$request_type][$pattern] = $callback;
+            self::$routes[$request_type][$pattern] = $route;
         } else {
             self::routerReplace($request_type, $pattern, $callback, $re_rule);
         }
     }
 
     /**
-     * 路由前缀循环嵌套
+     * 提供中间件和路由前缀注册
      *
-     * @param $pre
-     * @param $callback
+     * @param array|string $pre 中间件名和路由前缀
+     * @param callable $callback
      */
     public static function group($pre, $callback)
     {
-        array_push(self::$url_pre, $pre);
+        $p = '';
+        $m = '';
+        if (is_array($pre)) {
+            if (isset($pre['prefix']) && $pre['prefix']) {
+                $p = $pre['prefix'];
+            }
+            if (isset($pre['middleware']) && $pre['middleware']) {
+                $m = $pre['middleware'];
+            }
+        } elseif (is_string($pre)) {
+            $p = $pre;
+        }
+
+        $p && array_push(self::$url_pre, $p);
+        $m && array_push(self::$middlewares, $m);
+
         if (is_callable($callback)) {
             call_user_func($callback);
         }
-        array_pop(self::$url_pre);
+
+        $p && array_pop(self::$url_pre);
+        $m && array_pop(self::$middlewares);
     }
 
     /**
@@ -250,7 +275,8 @@ class Router
         $route = [
             'pattern_raw' => $pattern_raw,
             'pattern_re' => '#^' . $pattern_re . '$#',
-            'callback' => $callback
+            'callback' => $callback,
+            'middlewares' => self::$middlewares
         ];
         if (!strpos($pattern_raw, '{') !== false) {
             self::$routes[$request_type][$pattern_raw] = $callback;
@@ -291,14 +317,22 @@ class Router
         $url = isset($_SERVER['REDIRECT_URL']) ? rtrim($_SERVER['REDIRECT_URL'], '/') : '/';
         //改变url样子
         //$url = self::router_parameter_list($request_type, $url);
+        // 路由是否通过
         $is_matched = false;
+        // 路由指定的回调函数或控制器方法
         $callback = null;
+        // 参数列表
         $params = [];
+        // 路由对应的中间件列表
+        $middlewares = [];
+
         if (isset($routes['ANY'][$url])) {
-            $callback = $routes['ANY'][$url];
+            $callback = $routes['ANY'][$url]['callback'];
+            $middlewares = $routes['ANY'][$url]['middlewares'];
             $is_matched = true;
         } elseif (isset($routes[$request_type][$url])) {
-            $callback = $routes[$request_type][$url];
+            $callback = $routes[$request_type][$url]['callback'];
+            $middlewares = $routes[$request_type][$url]['middlewares'];
             $is_matched = true;
         } else {
             if (isset($re_routes['ANY'])) {
@@ -309,6 +343,7 @@ class Router
                     }
                     if ($is_matched) {
                         array_shift($params);
+                        $middlewares = $route['middlewares'];
                         $callback = $route['callback'];
                         break;
                     }
@@ -322,6 +357,7 @@ class Router
                     }
                     if ($is_matched) {
                         array_shift($params);
+                        $middlewares = $route['middlewares'];
                         $callback = $route['callback'];
                         break;
                     }
@@ -330,6 +366,29 @@ class Router
         }
         //检查是否有定义的请求方式下的请求地址
         if ($is_matched) {
+            // 先做中间件数组扁平化
+            foreach ($middlewares as $ms) {
+                // 遍历当前路由的所有中间件配置信息
+                foreach ($ms as $m) {
+                    // 如果是闭包
+                    if (is_callable($m)) {
+                        call_user_func($m);
+                    } else {
+                        // 获取当前中间件的配置信息
+                        $mclass = Config::get('middleware.' . $m);
+                        if (is_array($mclass)) {
+                            foreach ($mclass as $mc) {
+                                $mobj = new $mc;
+                                $mobj->handle();
+                            }
+                        } else {
+                            $mobj = new $mclass;
+                            $mobj->handle();
+                        }
+                    }
+                }
+            }
+
             //是否有自定义url匹配正确的回调函数
             if (is_callable(self::$onMatch)) {
                 call_user_func(self::$onMatch, $callback, $params);

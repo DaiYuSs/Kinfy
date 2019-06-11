@@ -112,4 +112,12 @@ class UserController extends BaseController
         $data = $user->where('id', $user_id)->value($field);
         print_r($data);
     }
+
+    /**
+     * 中间件测试方法
+     */
+    public function login()
+    {
+        print_r($_REQUEST['name'] ?? '字段name不存在');
+    }
 }

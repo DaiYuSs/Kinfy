@@ -75,9 +75,14 @@ Router::POST(
     'BookController@add'
 );
 
+// 中间件测试路由
+Router::group(['middleware' => ['ipband', 'filter_name', 'filter_ab',function(){echo 'test';}], 'prefix' => 'user'], function () {
+    Router::get('login', 'UserController@login');
+});
+
 // 模板首页路由
 Router::GET('article', 'ArticleController@bladeIndex');
 Router::GET('/', 'ArticleController@bladeIndex');
-Router::GET('/article/news','ArticleController@news');
-Router::GET('/article/news2','ArticleController@news2');
-Router::GET('/article/news3','ArticleController@news3');
+Router::GET('/article/news', 'ArticleController@news');
+Router::GET('/article/news2', 'ArticleController@news2');
+Router::GET('/article/news3', 'ArticleController@news3');
