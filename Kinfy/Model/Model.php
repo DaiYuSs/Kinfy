@@ -353,17 +353,18 @@ class Model
     }
 
     /**
-     * 当执行静态代码时,自身有一个实例static::$instance
-     * 返回静态的共用的实例
+     * 根据类名生成指定静态类
      *
      * @return $this
      */
     public static function getInstance()
     {
-        if (!static::$instance) {
-            static::$instance = new static();
+        $sub_class = get_called_class();
+
+        if (!isset(static::$instance[$sub_class])) {
+            static::$instance[$sub_class] = new static();
         }
-        return static::$instance;
+        return static::$instance[$sub_class];
     }
 
     /**
