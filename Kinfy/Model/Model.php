@@ -422,6 +422,30 @@ class Model
     }
 
     /**
+     * 设置条件然后进行数据删除
+     *
+     * @param mixed $id 主键值
+     * @return string
+     */
+    public function del($id = null): string
+    {
+        $this->filterFields();
+
+        $k = $this->pk;
+        $v = $this->fields[$this->pk] ?? null;
+
+        if ($id) {
+            $this->DB->where($k, $id);
+        } elseif ($v) {
+            $this->DB->where($k, $v);
+        } else {
+            die('没有提供主键');
+        }
+
+        return $this->DB->delete();
+    }
+
+    /**
      * 判断是否有设置主键属性和值
      *
      * @return bool
