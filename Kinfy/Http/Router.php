@@ -313,8 +313,10 @@ class Router
 //        die();
         //获取请求头
         $request_type = strtoupper($_SERVER['REQUEST_METHOD']);
-        //获取请求地址,默认为'/'
-        $url = isset($_SERVER['REDIRECT_URL']) ? rtrim($_SERVER['REDIRECT_URL'], '/') : '/';
+        // 先将url分割成正常的路由
+        $url = explode('?', $_SERVER['REQUEST_URI'])[0];
+        // 去除多余的'/'
+        $url = $url != '/' ? rtrim($url, '/') : '/';
         //改变url样子
         //$url = self::router_parameter_list($request_type, $url);
         // 路由是否通过
