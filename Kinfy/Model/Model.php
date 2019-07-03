@@ -290,8 +290,7 @@ class Model
         $name = strtolower($name);
         $m = [
             'add',
-            'update',
-            'save'
+            'update'
         ];
         return in_array($name, $m);
     }
@@ -373,8 +372,10 @@ class Model
      * @param array $data
      * @return mixed
      */
-    private function _save(array $data = [])
+    public function save(array $data = [])
     {
+        // 如果没有这行代码,将无法正常执行havePk
+        $this->filterFields($data);
         // 如果没有主键,则添加,否则更新
         if (!$this->havePk()) {
             return $this->add($data);
@@ -392,7 +393,6 @@ class Model
     private function _add(array $data)
     {
         // 预先处理写进去的数据库字段，把属性名转换成数据库字段名
-        $this->filterFields($data);
         // 如果字段主键是自动生成的,则删除主键的值
         if ($this->autoPk) {
             unset($this->fields[$this->pk]);
@@ -411,7 +411,6 @@ class Model
      */
     private function _update(array $data)
     {
-        $this->filterFields($data);
         $k = $this->pk;
         $v = $this->fields[$this->pk];
 

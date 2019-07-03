@@ -15,6 +15,12 @@ class DB
     public $sql = [];
     public $join = '';
     public $orderby = [];
+    /**
+     * 记录是否有嵌套where
+     *
+     * @var int
+     */
+    private $nesting = 0;
 
     /**
      * DB初始化连接数据库和全局属性
@@ -94,23 +100,35 @@ class DB
      * 设置查询条件参数(字段,操作符,值)
      * opt === option   op === operator
      *
-     * @param string $field
+     * @param string|callable $field
      * @param string $op
      * @param string $val
+     * @param string $type
      * @return $this
      */
-    public function where($field, $op, $val = null)
+    public function where($field, $op = null, $val = null, $type = '')
     {
-        return $this->andWhere($field, $op, $val);
+        if (is_callable($field)) {
+            $this->nesting++;
+            call_user_func($field,$this);
+            $this->where[] = ')';
+            return $this;
+        }
+        if ($this->nesting > 0) {
+            $this->where[] = " {$type} (";
+            $this->nesting--;
+            $type = '';
+        }
+        return $this->_where($field, $op, $val, $type);
     }
 
     /**
      * where 条件语句存储
      *
-     * @param string $field
-     * @param string $op
-     * @param string $val
-     * @param string $type
+     * @param string $field 字段名
+     * @param string $op 操作符
+     * @param string $val 值
+     * @param string $type 优先级
      * @return $this
      */
     private function _where($field, $op, $val, $type)
@@ -119,7 +137,10 @@ class DB
             $val = $op;
             $op = '=';
         }
-        $this->where[] = [$field, $op, $val, $type];
+        $this->where[] = [
+            'condition' => [$field, $op, $val],
+            'type' => $type
+        ];
         return $this;
     }
 
@@ -130,9 +151,9 @@ class DB
      * @param null $val
      * @return DB
      */
-    public function andWhere($field, $op, $val = null)
+    public function andWhere($field, $op = null, $val = null)
     {
-        return $this->_where($field, $op, $val, 'and');
+        return $this->where($field, $op, $val, 'and');
     }
 
     /**
@@ -142,9 +163,9 @@ class DB
      * @param null $val
      * @return DB
      */
-    public function orWhere($field, $op, $val = null)
+    public function orWhere($field, $op = null, $val = null)
     {
-        return $this->_where($field, $op, $val, 'or');
+        return $this->where($field, $op, $val, 'or');
     }
 
     /**
@@ -155,7 +176,7 @@ class DB
      */
     public function whereNull($field)
     {
-        return $this->andWhereNull($field);
+        return $this->whereIsNull($field, '');
     }
 
     /**
@@ -165,7 +186,7 @@ class DB
      */
     public function andWhereNull($field)
     {
-        return $this->_where($field, 'IS', 'NULL', 'and');
+        return $this->whereIsNull($field, 'and');
     }
 
     /**
@@ -175,7 +196,19 @@ class DB
      */
     public function orWhereNull($field)
     {
-        return $this->_where($field, 'IS', 'NULL', 'or');
+        return $this->whereIsNull($field, 'or');
+    }
+
+    /**
+     * 服务于sql where的is null条件的相关函数
+     *
+     * @param $field
+     * @param $type
+     * @return $this
+     */
+    private function whereIsNull($field, $type)
+    {
+        return $this->_where($field, 'IS', 'NULL', $type);
     }
 
     /**
@@ -186,7 +219,7 @@ class DB
      */
     public function whereNotNull($field)
     {
-        return $this->andWhereNotNull($field);
+        return $this->whereIsNotNull($field, '');
     }
 
     /**
@@ -196,7 +229,7 @@ class DB
      */
     public function andWhereNotNull($field)
     {
-        return $this->_where($field, 'IS NOT', 'NULL', 'and');
+        return $this->whereIsNotNull($field, 'and');
     }
 
     /**
@@ -206,27 +239,19 @@ class DB
      */
     public function orWhereNotNull($field)
     {
-        return $this->_where($field, 'IS NOT', 'NULL', 'or');
+        return $this->whereIsNotNull($field, 'or');
     }
 
     /**
-     * 插入一个'('
+     * 服务于sql where的is not null条件的相关函数
      *
+     * @param $field
+     * @param $type
      * @return $this
      */
-    public function L()
+    private function whereIsNotNull($field, $type)
     {
-        return $this->_where('(', '', '', '');
-    }
-
-    /**
-     * 插入一个')'
-     *
-     * @return $this
-     */
-    public function R()
-    {
-        return $this->_where(')', '', '', '');
+        return $this->_where($field, 'IS NOT', 'NULL', $type);
     }
 
     /**
@@ -263,8 +288,8 @@ class DB
     /**
      * 简易的join暴力插入
      *
-     * @param string $table
-     * @param string $condition
+     * @param string $table 被连接表名
+     * @param string $condition 连接表名的条件约束
      * @return $this
      */
     public function join($table, $condition)
@@ -309,10 +334,21 @@ class DB
         $values = [];
         //关系表达式
         $sep = '';
-        foreach ($this->where as $w) {
-            list($field, $op, $val) = $w;
-            $where .= " {$sep} `{$field}` {$op} ? ";
-            $values[] = $val;
+        foreach ($this->where as $c) {
+            if (!is_array($c)) {
+                $where .= $c;
+            } else {
+                if (isset($c['condition']) && isset($c['type'])) {
+                    list($field, $op, $val) = $c['condition'];
+                    $is_identifier = strpos($field, '.') !== false;
+                    if (!$is_identifier) {
+                        $field = "`{$field}`";
+                    }
+                    $sep = " {$c['type']} ";
+                    $where .= " {$sep} {$field} {$op} ? ";
+                    $values[] = $val;
+                }
+            }
         }
         $where = $where ? ' where ' . $where : $where;
         return [$where, $values];
